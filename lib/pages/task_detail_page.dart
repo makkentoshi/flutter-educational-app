@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '/texts.dart';
+import '/answers.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final String title;
@@ -35,15 +36,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
 
   // Метод для проверки ответа
   Future<void> checkAnswer(String answer, String taskText) async {
-
     await dotenv.load(fileName: ".env");
 
     final String? apiKey = dotenv.env['gemini_token'];
-    
-    print('API Key: $apiKey');
+
+ 
 
     if (apiKey == null) {
-      print('There is no API  in .env');
       return;
     }
 
@@ -58,18 +57,30 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         apiKey: apiKey,
       );
 
+      final correctAnswers = answers;
+
       // Создаем промпт для проверки
-      final prompt = '''
-      Here is the answer given by the user: "$answer".
-      Check this answer against the following topic: $taskText.
-      
-      Please provide feedback on whether the answer is correct or not and the percentage of correctness.
-      ''';
+final prompt = '''
+You are provided with the user's answer: "$answer".
+Check this answer against the correct answers listed below.
+
+Rules:
+- For each task, evaluate the answer based on correctness and similarity to the correct answers.
+- Users can input their answers in any order, using the format "Task A: 1 - answer1, 2 - answer2, ...".
+- !IMPORTANT! For example : for Task A, if the user scored 4 out of 5, report it as 4/20 points  , do not provide correctness FOR EACH TASK , ONLY FOR FULL WORK,  4/20,  13/20 and etc.
+- For Tasks B and C, determine correctness based on conceptual similarity, rather than EXACT matches.
+- Do not use double asterisks (**) or single asterisks (*) in your responses.
+- !IMPORTANT! Provide only the total score out of 20 points and the percentage of correctly answered questions AND CALCULATE PERCENTAGE OF FULL WORK , FOR EXAMPLE : 4/20 = %20.
+- Generate explanations or additional feedback on each incorrect answer and provide the correct answers DO NOT USE "**" IN YOUR ANSWERS , FOR EXAMPLE "**CORRECT**" - DO NOT USE IT USE ONLY WORD "CORRECT" AND ETC.
+- !IMPORTANT! If user does not completed the task , DO 0 MARK FOR THIS TASK , FOR EXAMPLE : IF USER DID NOT ANSWER FOR TASK A , JUST DO 0 ZERO FOR TASK A AND JUST COUNT FOR B AND C.
+
+Correct answers: $correctAnswers.
+''';
 
       // Генерируем ответ
       final response = await model.generateContent([Content.text(prompt)]);
 
-      print(response);
+
 
       // Выводим фидбэк от Gemini
       String feedback = response.text ?? "No feedback available";
@@ -107,39 +118,43 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10.0),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, // Окно подстраивается по контенту
-                  children: [
-                    Text(
-                      "Feedback",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Text(
-                      feedback,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(); // Закрываем окно
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                child: SingleChildScrollView(
+                  // Добавлено для прокрутки
+                  child: Column(
+                    mainAxisSize:
+                        MainAxisSize.min, // Окно подстраивается по контенту
+                    children: [
+                      Text(
+                        "Feedback",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
-                        child: const Text("Close"),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 15),
+                      Text(
+                        feedback,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Закрываем окно
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text("Close"),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Positioned(
